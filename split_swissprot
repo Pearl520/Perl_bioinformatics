@@ -1,0 +1,113 @@
+#!/usr/bin/perl -w
+use strict;
+
+my $files = `ls taxonomic_divisions/uniprot_sprot_*.dat.gz`;
+chomp $files;
+my %hash;
+open OUT,">swissprot_id.xls";
+my @tmp = split(/\n/, $files);
+for my $id(@tmp){
+	chomp $id;
+	if($id =~ /uniprot_sprot_(.*)\.dat.gz/){
+		my $class = $1;
+		open IN,"gzip -dc $id|" || die $!;
+		$/="\/\/\n";
+		while(<IN>){
+			chomp;
+			my @array = split(/\n/);
+			my @array2 = split(/\s+/, $array[0]);
+			if($array2[0] eq "ID"){
+				print OUT "$array2[1]\t$class\n";
+			}
+			else{
+				print "ID error!";
+			}
+			$hash{$array2[1]} = $class;
+		}
+		close IN;
+	}
+}
+
+open ARCHAEA,">./Archaea.fa";
+open BACTERIA,">./Bacteria.fa";
+open FUNGI,">./Fungi.fa";
+open HUMAN,">./Human.fa";
+open INVERTEBRATES,">./Invertebrates.fa";
+open MAMMALS,">./Mammals.fa";
+open PLANTS,">./Plants.fa";
+open RODENTS,">./Rodents.fa";
+open VERTEBRATES,">./Vrtebrates.fa";
+open VIRUSES,">./Viruses.fa";
+open ANIMAL,">./Animal.fa";
+open OTHER,">./Other.fa";
+open UNKOWN,">./Unkown.fa";
+
+open FASTA,"./uniprot_sprot.fasta";
+$/=">";
+<FASTA>;
+while(<FASTA>){
+	chomp;
+	my @tmp2 = split(/\n/, $_);
+	my @tmp3 = split(/\s+/, $tmp2[0]);
+	if($tmp3[0] =~ /sp\|(.*)\|(.*)\_(.*)/){
+		my $cao = $2."\_".$3;
+		unless(exists $hash{$cao}){
+			print UNKOWN ">$_";
+			print OUT "$cao\tunkown\n";
+			next;
+		}
+		if($hash{$cao} eq "archaea"){
+			print ARCHAEA ">$_";
+			print OTHER ">$_";
+		}
+		elsif($hash{$cao} eq "bacteria"){
+			print BACTERIA ">$_";
+			print OTHER ">$_";
+		}
+		elsif($hash{$cao} eq "fungi"){
+			print FUNGI ">$_";
+			print OTHER ">$_";
+		}
+		elsif($hash{$cao} eq "human"){
+			print HUMAN ">$_";
+			print ANIMAL ">$_";
+		}
+		elsif($hash{$cao} eq "invertebrates"){
+			print INVERTEBRATES ">$_";
+			print ANIMAL ">$_";
+		}
+		elsif($hash{$cao} eq "mammals"){
+			print MAMMALS ">$_";
+			print ANIMAL ">$_";
+		}
+		elsif($hash{$cao} eq "plants"){
+			print PLANTS ">$_";
+		}
+		elsif($hash{$cao} eq "rodents"){
+			print RODENTS ">$_";
+			print ANIMAL ">$_";
+		}
+		elsif($hash{$cao} eq "vertebrates"){
+			print VERTEBRATES ">$_";
+			print ANIMAL ">$_";
+		}
+		elsif($hash{$cao} eq "viruses"){
+			print VIRUSES ">$_";
+			print OTHER ">$_";
+		}
+		else{
+			print UNKOWN ">$_";
+		}
+	}
+}
+close FASTA;
+close OUT;
+my $fas = `ls *.fa *.fasta`;
+chomp $fas;
+open FORMAT,">formatdb.sh";
+my @fas_arr = split(/\s+/, $fas);
+for my $fas_file(@fas_arr){
+	chomp $fas_file;
+	print FORMAT "/media/sdb/bio/blast/bin/formatdb -p T -i $fas_file\n";
+}
+close FORMAT;
